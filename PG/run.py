@@ -1,38 +1,38 @@
 import gym
-from agent import PolicyGradient
-
-DISPLAY_REWARD_THRESHOLD = 400  # renders environment if total episode reward is greater then this threshold
-RENDER = False  # rendering wastes time
+from PG_agent import PolicyGradient
+import matplotlib.pyplot as plt
+import numpy as np
 
 if __name__ == "__main__":
-    env = gym.make('CartPole-v1')
-    # env.seed(1)   
-    env = env.unwrapped
-
-    # print(env.action_space)
-    # print(env.observation_space)
-    # print(env.observation_space.high)
-    # print(env.observation_space.low) 
+    #获取环境配置信息
+    env = gym.make('CartPole-v0')
+    env.seed(3)
     action_dim = env.action_space.n
     state_dim = env.observation_space.shape[0]
+    #设定参数
     learning_rate = 0.01
     reward_decay = 0.9
-
+    #创建一个agent
     RL = PolicyGradient(action_dim, state_dim, learning_rate, reward_decay)
-    # RL.restore_model('./models_Cartpole') #如果需要验证自己模型，执行这一句
-    for episode in range(1000):
-        if episode % 10 == 0:#每10步保存一下模型
-            RL.save_model(episode)
-        s = env.reset()#初始化环境
+    #开始交互
+    episode = 500
+    reward = np.zeros(episode) #存储每一个episode的奖励
+    for ep in range(episode):
+        if ep % 50 == 0:
+            RL.save_model(ep)
+        s = env.reset() #环境初始化
         print('--------This is the', episode,'episode----------')
         while True:
-            a = RL.choose_action(s) 
-            s_, r, done, info = env.step(a)
-            RL.store_transition(s, a, r)
-            if done:
+            a = RL.choose_action(s) #选动作
+            s_, r, done, info = env.step(a) #执行动作
+            RL.store_transition(s, a, r) #存储每一步交互
+            if done: #交互终止--game over
                 print('the total reward:', sum(RL.ep_r))
+                reward[ep] = sum(RL.ep_r)
                 break
-            s = s_
-            env.render()
-        RL.learn()
+            s = s_    #进入下一个状态      
+        RL.learn() #agent学习
+
+    plt.plot(np.arange(episode),reward)
+    plt.savefig('./reward.png')   
            
