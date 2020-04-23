@@ -8,3 +8,6 @@
 - DQN
 - DDQN
 - PG
+- A2C
+
+***Some algorithms support both continuous and discrete actions. The agent for continuous action is defined as "xxx_agent_con.py"***.
