@@ -8,6 +8,12 @@
 - DQN
 - DDQN
 - PG
+- AC
 - A2C
 
-***Some algorithms support both continuous and discrete actions. The agent for continuous action is defined as "xxx_agent_con.py"***.
+------
+
+*Note*:
+
+1. **AC** and **A2C** have two kinds of agents. The difference is the training method for the critic network
+2. Some algorithms support both continuous and discrete actions. The agent for continuous action is defined as "xxx_agent_con.py".

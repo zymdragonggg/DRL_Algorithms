@@ -1,3 +1,11 @@
+'''
+This is an AC algorithm which uses critic network itself to obtain the next value of state.
+action: continuous
+experiment results: it doesn't work at all...
+'''
+import gym
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
 import tensorflow_probability as tfp
@@ -32,7 +40,7 @@ class CriticNet(Model): #critic网络：输出状态的价值
         value = self.d3(x)
         return value
 
-class A2C:
+class AC:
     def __init__(self, state_dim, action_dim, learning_rate = 0.001, reward_decay = 0.9):
         self.s_dim = state_dim
         self.a_dim = action_dim
@@ -54,20 +62,50 @@ class A2C:
         action = tf.clip_by_value(action, -1.0, 1.0)  #选出动作
         action = action.numpy().flatten() #处理动作为环境可理解的
         return action
-
-    def learn(self, s, a, r, s_, done):   #一步一学习
+    
+    def learn(self, s, a, r, s_, done): #一步一学习
         s, s_ = s.reshape([1, self.s_dim]), s_.reshape([1, self.s_dim])
         with tf.GradientTape(persistent = True) as tape:
-            state_v = self.critic_net(s)
-            state_v_ = self.critic_net(s_)
-            td_error =  r + (1 - done) * self.gamma * state_v_ - state_v #得到td_error
-            critic_loss = tf.square(td_error)  #得到critic网络的误差
+            state_v = self.critic_net(s) #获取当前状态value值
+            state_v_ = self.critic_net(s_) #获取下一个状态的value值
+            error = r + (1 - done) * self.gamma * state_v_ - state_v #用于critic网络训练
+            critic_loss = tf.square(error)  
             
             mu, sigma = self.actor_net(s) 
             norm_dist = tfp.distributions.Normal(mu, sigma)
-            a_prob = norm_dist.log_prob(a) #得到动作的概率
-            exp_v = - tf.reduce_mean(a_prob * td_error) 
+            sa_prob = norm_dist.log_prob(a) #得到动作的概率
+            actor_loss = - tf.reduce_mean(sa_prob * state_v) 
         critic_grads = tape.gradient(critic_loss, self.critic_net.trainable_variables) 
-        actor_grads = tape.gradient(exp_v, self.actor_net.trainable_variables)
+        actor_grads = tape.gradient(actor_loss, self.actor_net.trainable_variables)
         self.optimizer1.apply_gradients(zip(critic_grads, self.critic_net.trainable_variables))
         self.optimizer2.apply_gradients(zip(actor_grads, self.actor_net.trainable_variables)) 
+
+if __name__ == "__main__":
+    #获取环境配置信息
+    env = gym.make('MountainCarContinuous-v0')
+    action_dim = len(env.action_space.high) #获取有几个连续动作
+    state_dim = env.observation_space.shape[0] #获取状态空间纬度
+    #设定参数
+    learning_rate = 0.001
+    reward_decay = 0.9
+    #创建一个agent
+    rl = AC(state_dim, action_dim, learning_rate, reward_decay)
+    #开始交互
+    episode = 1000
+    reward = np.zeros(episode) #存储每一个episode的奖励
+    for ep in range(episode):
+        total_reward = 0
+        s = env.reset() #环境初始化
+        print('--------This is the', ep,'episode----------')
+        while True:
+            a = rl.choose_action(s) #选动作
+            s_, r, done, info = env.step(a) #执行动作
+            rl.learn(s, a, r, s_, done)
+            total_reward += r
+            if done: #交互终止--game over
+                print('the total reward:', total_reward)
+                reward[ep] = total_reward
+                break
+            s = s_ #进入下一个状态          
+    plt.plot(np.arange(episode), reward)
+    plt.savefig('./reward_mountain2.png') 
